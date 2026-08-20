@@ -1,41 +1,149 @@
 {
-  general: {
-    boardName: "New Dockerised ENiGMA½ BBS"
-  }
-  messageConferences: {
-    local: {
-      name: "Local"
-      desc: "Local Areas"
-      sort: 1
-      default: true
-      areas: {
-        general: {
-          name: "General"
-          desc: "General chit-chat"
-          sort: 1
-          default: true
+    general: {
+        boardName: "OpenAllHours BBS"
+        bbsId: "OPENALLHOURS"
+        location: "North Yorkshire, England"
+        sysopName: "Louis Northmore"
+        sysopEmail: "sysop@openallhours.bbs"
+    }
+
+    loginServers: {
+        telnet: {
+            port: 8888
         }
-      }
-    }
-    another_sample_conf: {
-      name: "Another Sample Conference"
-      desc: "Another conf sample. Change me!"
-      areas: {
-        another_sample_area: {
-          name: "Another Sample Area"
-          desc: "Another area example. Change me!"
-          sort: 2
+        ssh: {
+            port: 8889
         }
-      }
     }
-  }
-  archivers: {
-    zip: {
-      compressCmd: "7z"
-      decompressCmd: "7z"
+
+    contentServers: {
+        web: {
+            port: 8080
+            address: "0.0.0.0"
+            httpRoot: "./web"
+            messageBaseMount: "messagebase"
+        }
     }
-  }
-  logging: {
-    level: "debug"
-  }
+
+    messageConferences: {
+        chatnet: {
+            name: "ChatNet"
+            desc: "ChatNet conferences and areas"
+            sort: 1
+            default: true
+            areas: {
+                chatnet_general: {
+                    name: "ChatNet General"
+                    desc: "General ChatNet discussion"
+                    sort: 1
+                    default: true
+                }
+                chatnet_data: {
+                    name: "ChatNet Data"
+                    desc: "Data, files, and announcements"
+                    sort: 2
+                }
+                chatnet_test: {
+                    name: "ChatNet Test"
+                    desc: "Testing area"
+                    sort: 3
+                }
+            }
+        }
+        local: {
+            name: "Local"
+            desc: "Local areas"
+            sort: 10
+            areas: {
+                general: {
+                    name: "General"
+                    desc: "Local general discussion"
+                    sort: 1
+                }
+                netmail: {
+                    name: "NetMail"
+                    desc: "FTN NetMail"
+                    sort: 2
+                }
+            }
+        }
+    }
+
+    messageNetworks: {
+        ftn: {
+            networks: {
+                chatnet: {
+                    defaultZone: 88
+                    localAddress: "88:88/88"
+                }
+            }
+
+            areas: {
+                chatnet_general: {
+                    network: chatnet
+                    tag: CHATNET_GENERAL
+                    uplinks: [ "88:88/150" ]
+                }
+                chatnet_data: {
+                    network: chatnet
+                    tag: CHATNET_DATA
+                    uplinks: [ "88:88/150" ]
+                }
+                chatnet_test: {
+                    network: chatnet
+                    tag: CHATNET_TEST
+                    uplinks: [ "88:88/150" ]
+                }
+            }
+        }
+    }
+
+    scannerTossers: {
+        ftn_bso: {
+            defaultNetwork: chatnet
+
+            schedule: {
+                import: "every 30 minutes or @watch:/enigma-bbs/mail/ftn_in/toss!.now"
+                export: "every 15 minutes or @immediate"
+            }
+
+            nodes: {
+                "88:88/150": {
+                    archiveType: ZIP
+                    encoding: utf8
+                    packetType: 2+
+                }
+            }
+
+            binkp: {
+                inbound: {
+                    enabled: true
+                    port: 24554
+                    address: "0.0.0.0"
+                }
+
+                pullSchedule: "every 15 minutes"
+
+                nodes: {
+                    "88:88/150": {
+                        host: "192.168.100.210"
+                        port: 24554
+                        sessionPassword: "mongoose"
+                        pull: true
+                    }
+                }
+            }
+        }
+    }
+
+    archivers: {
+        zip: {
+            compressCmd: "7za"
+            decompressCmd: "7za"
+        }
+    }
+
+    logging: {
+        level: "debug"
+    }
 }

@@ -1,35 +1,71 @@
-FROM ubuntu:16.04
+# ENiGMA 1/2 BBS — modern build from the gitea mirror, node 22, slim.
+# Clones enigma-bbs@master from the self-hosted mirror at build time so the
+# image always carries the latest master (native BinkP, FREQ, TLS, etc).
 
-MAINTAINER Dave Stephens <dave@force9.org>
+FROM node:22-bookworm-slim
 
-ENV NVM_DIR /root/.nvm
-ENV NVM_VERSION v0.33.7
-ENV NODE_VERSION 8
-ENV ENIGMA_BRANCH 0.0.9-alpha
+LABEL maintainer="louis@northmore.dev"
 
-# Do some installing!
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    build-essential \
-    python \
-    libssl-dev \
-    lrzsz \
-    arj \
-    lhasa \
-    unrar-free \
-    p7zip-full \
-  && curl -O https://raw.githubusercontent.com/creationix/nvm/$NVM_VERSION/install.sh \
-  && chmod +x ./install.sh && ./install.sh && rm install.sh \
-  && . ~/.nvm/nvm.sh && nvm install $NODE_VERSION && nvm alias default $NODE_VERSION && npm install -g pm2 \
-  && git clone https://github.com/NuSkooler/enigma-bbs.git --depth 1 --branch $ENIGMA_BRANCH \
-  && cd /enigma-bbs && npm install --only=production \
-  && apt-get remove build-essential python libssl-dev git curl -y && apt-get autoremove -y \
-  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-  && apt-get clean
+# ENIGMA_REPO may embed credentials, but we recommend passing a BuildKit secret
+# (--secret id=gitea_token) which is injected into the clone step below.
+ARG ENIGMA_REPO=https://git.uk1.northmore.net/northmore/enigma-bbs.git
+ARG ENIGMA_BRANCH=master
+ENV DEBIAN_FRONTEND noninteractive
 
-# sexyz
-COPY bin/sexyz /usr/local/bin
+# Build tooling + runtime support binaries ENiGMA wants (see docs: external-binaries)
+RUN apt-get update \
+    && apt-get install -y \
+        git \
+        curl \
+        build-essential \
+        python3 \
+        p7zip-full \
+        zip unzip \
+        lrzsz \
+        arj \
+        lhasa \
+        tar \
+        poppler-utils \
+        libimage-exiftool-perl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone target branch so we build from a known repo/branch. When the repo is
+# private, pass a BuildKit secret (gitea_token) and set ENIGMA_REPO to include
+# the username, e.g. --secret id=gitea_token \
+#     --build-arg ENIGMA_REPO=https://oauth2@git.uk1.northmore.net/northmore/enigma-bbs.git
+RUN --mount=type=secret,id=gitea_token,target=/run/gitea_token,required=false \
+    url="$ENIGMA_REPO"; \
+    if [ -f /run/gitea_token ]; then \
+        url=$(echo "$url" | sed "s#@#:$(cat /run/gitea_token)@#"); \
+    fi; \
+    git clone --depth 1 --branch "$ENIGMA_BRANCH" "$url" /enigma-bbs
+
+WORKDIR /enigma-bbs
+
+# Install production deps. --ignore-scripts skips the dev-only husky 'prepare'
+# hook in enigma's package.json; better-sqlite3 then needs its prebuild/compile
+# step run explicitly (binary for the platform/arch is fetched or built).
+RUN npm install --omit=dev --ignore-scripts \
+    && cd node_modules/better-sqlite3 \
+    && (npx --yes prebuild-install || npx --yes node-gyp rebuild --release) \
+    && cd /enigma-bbs
+
+# sexyz (X/Y/Zmodem) binary must be alongside main.js
+COPY bin/sexyz /enigma-bbs/sexyz
+RUN chmod +x /enigma-bbs/sexyz
+
+# Pre-stage the volumes that need files at first boot: art, mods, config
+RUN mkdir -p /enigma-bbs-pre/art /enigma-bbs-pre/mods /enigma-bbs-pre/config \
+    && cp -rp /enigma-bbs/art/* /enigma-bbs-pre/art/ \
+    && cp -rp /enigma-bbs/mods/* /enigma-bbs-pre/mods/ 
+
+# Bake our chatnet config + entrypoint. config.hjson is the primary config and
+# is staged alongside the rest so a fresh PVC gets seeded automatically.
+COPY config/config.hjson /enigma-bbs/config/config.hjson
+COPY config/ /enigma-bbs-pre/config/
+COPY scripts/enigma_entrypoint.sh /enigma-bbs/docker-entrypoint.sh
+RUN chmod +x /enigma-bbs/docker-entrypoint.sh \
+    && rm -rf /var/lib/apt/lists/*
 
 # enigma storage mounts
 VOLUME /enigma-bbs/art
@@ -40,16 +76,9 @@ VOLUME /enigma-bbs/logs
 VOLUME /enigma-bbs/mods
 VOLUME /mail
 
-# copy base config
-COPY config/* /enigma-bbs/misc/
-
-# set up config init script
-COPY scripts/enigma_config.sh /enigma-bbs/misc/enigma_config.sh
-RUN chmod +x /enigma-bbs/misc/enigma_config.sh
-
-# Enigma default port
-EXPOSE 8888
+# enigma default ports: telnet, ssh, web, https, binkp
+EXPOSE 8888 8889 8080 8843 24554
 
 WORKDIR /enigma-bbs
 
-ENTRYPOINT ["/bin/bash", "-c", "cd /enigma-bbs && ./misc/enigma_config.sh && source ~/.nvm/nvm.sh && exec pm2-docker ./main.js"]
+ENTRYPOINT ["/enigma-bbs/docker-entrypoint.sh"]
