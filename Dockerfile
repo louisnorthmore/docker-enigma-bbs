@@ -42,13 +42,9 @@ RUN --mount=type=secret,id=gitea_token,target=/run/gitea_token,required=false \
 
 WORKDIR /enigma-bbs
 
-# Install production deps. --ignore-scripts skips the dev-only husky 'prepare'
-# hook in enigma's package.json; better-sqlite3 then needs its prebuild/compile
-# step run explicitly (binary for the platform/arch is fetched or built).
-RUN npm install --omit=dev --ignore-scripts \
-    && cd node_modules/better-sqlite3 \
-    && (npx --yes prebuild-install || npx --yes node-gyp rebuild --release) \
-    && cd /enigma-bbs
+# Install all deps (dev included: husky's 'prepare' hook + native module
+# install scripts run normally, matching the upstream docker build).
+RUN npm install
 
 # sexyz (X/Y/Zmodem) binary must be alongside main.js
 COPY bin/sexyz /enigma-bbs/sexyz
@@ -59,12 +55,16 @@ RUN mkdir -p /enigma-bbs-pre/art /enigma-bbs-pre/mods /enigma-bbs-pre/config \
     && cp -rp /enigma-bbs/art/* /enigma-bbs-pre/art/ \
     && cp -rp /enigma-bbs/mods/* /enigma-bbs-pre/mods/ 
 
-# Bake our chatnet config + entrypoint. config.hjson is the primary config and
-# is staged alongside the rest so a fresh PVC gets seeded automatically.
-COPY config/config.hjson /enigma-bbs/config/config.hjson
-COPY config/ /enigma-bbs-pre/config/
+# Bake our chatnet config + entrypoint. The live /enigma-bbs/config dir MUST
+# stay empty (only the repo's achievements.hjson ships there) so the entrypoint
+# seeds config.hjson + menus from /enigma-bbs-pre on the first boot against a
+# fresh volume.
+COPY config/config.hjson /enigma-bbs-pre/config/config.hjson
 COPY scripts/enigma_entrypoint.sh /enigma-bbs/docker-entrypoint.sh
-RUN chmod +x /enigma-bbs/docker-entrypoint.sh \
+COPY scripts/generate-menus.js /enigma-bbs/generate-menus.js
+# Generate the menus dir into the staging tree (mirrors 'oputil config new')
+RUN node /enigma-bbs/generate-menus.js \
+    && chmod +x /enigma-bbs/docker-entrypoint.sh \
     && rm -rf /var/lib/apt/lists/*
 
 # enigma storage mounts

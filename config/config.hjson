@@ -5,6 +5,7 @@
         location: "North Yorkshire, England"
         sysopName: "Louis Northmore"
         sysopEmail: "sysop@openallhours.bbs"
+        menuFile: "/enigma-bbs/config/menus/openallhours_bbs-main.hjson"
     }
 
     loginServers: {

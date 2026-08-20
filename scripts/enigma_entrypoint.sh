@@ -11,7 +11,16 @@ BBS_STAGING_PATH=/enigma-bbs-pre
 CONFIG_NAME=config.hjson
 
 if [[ ! -f $BBS_ROOT_DIR/config/$CONFIG_NAME ]]; then
-    for VOLUME in "${PRE_POPULATED_VOLUMES[@]}"
+    #  Seed the config volume: config.hjson + generated menus must exist for the
+    #  BBS to boot. Other volumes (mods/art) are copied only when empty.
+    if [ -f "$BBS_STAGING_PATH/config/$CONFIG_NAME" ]; then
+        cp -p $BBS_STAGING_PATH/config/$CONFIG_NAME $BBS_ROOT_DIR/config/
+    fi
+    if [ -d "$BBS_STAGING_PATH/config/menus" ]; then
+        mkdir -p $BBS_ROOT_DIR/config/menus
+        cp -rp $BBS_STAGING_PATH/config/menus/* $BBS_ROOT_DIR/config/menus/
+    fi
+    for VOLUME in mods art
     do
         if [ -d "$BBS_ROOT_DIR/$VOLUME" ] && [ -z "$(ls -A "$BBS_ROOT_DIR/$VOLUME" 2>/dev/null)" ]; then
             cp -rp $BBS_STAGING_PATH/$VOLUME/* $BBS_ROOT_DIR/$VOLUME/
