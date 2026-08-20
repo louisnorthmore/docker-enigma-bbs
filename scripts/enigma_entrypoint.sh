@@ -20,6 +20,9 @@ if [[ ! -f $BBS_ROOT_DIR/config/$CONFIG_NAME ]]; then
         mkdir -p $BBS_ROOT_DIR/config/menus
         cp -rp $BBS_STAGING_PATH/config/menus/* $BBS_ROOT_DIR/config/menus/
     fi
+    #  achievements.hjson ships in the staging config (the config PVC masks the
+    #  image copy); seed it too so the achievements module works.
+    cp -p $BBS_STAGING_PATH/config/achievements.hjson $BBS_ROOT_DIR/config/ 2>/dev/null || true
     for VOLUME in mods art
     do
         if [ -d "$BBS_ROOT_DIR/$VOLUME" ] && [ -z "$(ls -A "$BBS_ROOT_DIR/$VOLUME" 2>/dev/null)" ]; then
@@ -35,5 +38,17 @@ if [[ ! -f $BBS_ROOT_DIR/config/$CONFIG_NAME ]]; then
   echo "ERROR: Missing configuration - ENiGMA 1/2 will not work"
   exit 1
 fi
+
+#  Ensure staged achievements.hjson is in the live config (idempotent for
+#  already-seeded PVCs whose image copy is masked by the mount).
+cp -p $BBS_STAGING_PATH/config/achievements.hjson $BBS_ROOT_DIR/config/achievements.hjson 2>/dev/null || true
+
+#  Ensure the ftn_bso spool structure exists so the import watch/dirs work from
+#  the first boot (BBS creates inbound dirs lazily, but the @watch: poller
+#  throws ENOENT if the watched dir is absent at startup).
+mkdir -p $BBS_ROOT_DIR/mail/ftn_in \
+         $BBS_ROOT_DIR/mail/ftn_secin \
+         $BBS_ROOT_DIR/mail/ftn_out \
+         $BBS_ROOT_DIR/mail/reject
 
 exec node main.js

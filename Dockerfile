@@ -62,6 +62,9 @@ RUN mkdir -p /enigma-bbs-pre/art /enigma-bbs-pre/mods /enigma-bbs-pre/config \
 COPY config/config.hjson /enigma-bbs-pre/config/config.hjson
 COPY scripts/enigma_entrypoint.sh /enigma-bbs/docker-entrypoint.sh
 COPY scripts/generate-menus.js /enigma-bbs/generate-menus.js
+# Stage achievements.hjson outside /enigma-bbs/config (the config PVC mount
+# masks the image copy) so the entrypoint can seed it into the live volume.
+COPY config/achievements.hjson /enigma-bbs-pre/config/achievements.hjson
 # Generate the menus dir into the staging tree (mirrors 'oputil config new')
 RUN node /enigma-bbs/generate-menus.js \
     && chmod +x /enigma-bbs/docker-entrypoint.sh \
