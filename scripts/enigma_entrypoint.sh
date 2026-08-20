@@ -43,6 +43,16 @@ fi
 #  already-seeded PVCs whose image copy is masked by the mount).
 cp -p $BBS_STAGING_PATH/config/achievements.hjson $BBS_ROOT_DIR/config/achievements.hjson 2>/dev/null || true
 
+#  CONNECT splash art is referenced by the generated login menus but ships in
+#  no upstream theme; seed it into the live theme dir idempotently for PVCs
+#  that were populated before this file existed.
+if [ -f "$BBS_STAGING_PATH/art/themes/luciano_blocktronics/CONNECT.ANS" ]; then
+    mkdir -p $BBS_ROOT_DIR/art/themes/luciano_blocktronics
+    cp -p $BBS_STAGING_PATH/art/themes/luciano_blocktronics/CONNECT.ANS \
+          $BBS_ROOT_DIR/art/themes/luciano_blocktronics/CONNECT.ANS \
+        2>/dev/null || true
+fi
+
 #  Ensure the ftn_bso spool structure exists so the import watch/dirs work from
 #  the first boot (BBS creates inbound dirs lazily, but the @watch: poller
 #  throws ENOENT if the watched dir is absent at startup).

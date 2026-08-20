@@ -49,6 +49,11 @@
                     desc: "Testing area"
                     sort: 3
                 }
+                chatnet_compliance: {
+                    name: "ChatNet Compliance"
+                    desc: "ChatNet policy and compliance"
+                    sort: 4
+                }
             }
         }
         local: {
@@ -95,6 +100,33 @@
                     tag: CHATNET_TEST
                     uplinks: [ "88:88/150" ]
                 }
+                chatnet_compliance: {
+                    network: chatnet
+                    tag: CHATNET_COMPLIANCE
+                    uplinks: [ "88:88/150" ]
+                }
+            }
+        }
+    }
+
+    fileBase: {
+        storageTags: {
+            chatnet_node: "chatnet/chatnet_node"
+            chatnet_info: "chatnet/chatnet_info"
+        }
+
+        areas: {
+            chatnet_node: {
+                name: "ChatNet Nodelist"
+                desc: "ChatNet nodelists"
+                sort: 1
+                storageTags: [ "chatnet_node" ]
+            }
+            chatnet_info: {
+                name: "ChatNet Infopack"
+                desc: "ChatNet infopacks"
+                sort: 2
+                storageTags: [ "chatnet_info" ]
             }
         }
     }

@@ -55,6 +55,9 @@ RUN mkdir -p /enigma-bbs-pre/art /enigma-bbs-pre/mods /enigma-bbs-pre/config \
     && cp -rp /enigma-bbs/art/* /enigma-bbs-pre/art/ \
     && cp -rp /enigma-bbs/mods/* /enigma-bbs-pre/mods/ 
 
+# Seed the CONNECT splash art (not shipped by any upstream theme) into staging
+COPY art/themes/luciano_blocktronics/CONNECT.ANS /enigma-bbs-pre/art/themes/luciano_blocktronics/CONNECT.ANS 
+
 # Bake our chatnet config + entrypoint. The live /enigma-bbs/config dir MUST
 # stay empty (only the repo's achievements.hjson ships there) so the entrypoint
 # seeds config.hjson + menus from /enigma-bbs-pre on the first boot against a
